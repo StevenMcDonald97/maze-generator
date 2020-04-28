@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+
+	<!-- d3 library -->
+	<script src="https://d3js.org/d3.v5.min.js"></script>
+	
+</head>
+<body>
+	<svg id="maze" height="515" width="500"></svg>
+</body>
+
+
+
+<!-- my code -->
+<script>
+// Pseudo code:
+// step 1: create a grid of edges, and a grid of points 
+// step 2: add borders to set of hard edges, (active points)
+// step 3: choose a random active point, and draw an edge ot a neighboring unactive point 
+// step 4: repeat until there are no unactive points 
+// step 5: choose starting/ending points on border 
+// step 6: create markers to show start/end 
+
+// start with 15x15 grid
+
+	
+	var height = 17;
+	var width = 17;
+	var visited = new Set([]); 
+	var unvisited = new Set([]); 
+	var borders = new Set([]); 
+
+	// add borders to active set 
+	var i;
+	for (i = 0; i < height; i++) {
+		visited.add(''+0+','+i);
+		visited.add(''+(width-1)+','+i);
+		if (i<height-1){
+		  	borders.add(create_line([0,i],[0,i+1]));
+			borders.add(create_line([width-1,i],[width-1,i+1]));
+		}
+	}
+
+	var j;
+	for (j = 0; j < width-1; j++) {
+		visited.add(''+j+','+0);
+		visited.add(''+j+','+(height-1));
+		if (j<width-1 && j != Math.floor(width/2-1)){
+			borders.add(create_line([j,0],[j+1,0]));
+			borders.add(create_line([j,height-1],[j+1,height-1]));
+		}
+	} 
+
+	for (k = 1; k < height-1; k++) {
+		for (n = 1; n < width-1; n++) {
+	  		unvisited.add(''+n+','+k);
+		}
+	}
+
+
+	// create a pair of points which define a line
+	function create_line (start, end){
+		return {x1:start[0],y1:start[1], x2:end[0],y2:end[1]}
+	}
+
+	// extract coordinate values from strings in theform "x,y"
+	// coordinate must be a string of the format "x,y", where x and y are integers
+	// dimension must be "x" or "y"
+	function get_coordinates (coordinate){
+		let coords = coordinate.split(",")
+		// console.log(coordinate.split(","));
+		return [parseInt(coords[0]),parseInt(coords[1])];
+
+	}
+	// convert array of ints [x,y] to coordinate string "x,y"
+	function coordinate_string (coordinate){
+		return ''+coordinate[0]+","+coordinate[1];
+
+	}
+
+	function valid_point(point){
+		if (point[0]<0 || point[0]>width-1 || point[1]<0 || point[1]>height-1){
+			return false;
+		}
+
+		return true;
+	}
+
+
+	// loop while the size of active points is less than all points
+	// choose a point that is not less than zero, greater than dimension, neighbors a point in visited, and is not already in visited
+	var i=0;
+	while (unvisited.size > 0 && i<10000){
+		let point = get_coordinates(Array.from(visited)[Math.floor(Math.random() * visited.size)]);
+		
+		let length = Math.floor(Math.random() * width);
+		let path_length=0;
+		// console.log(length);
+
+		// continue one path for a random length to make maze more complicated
+		while (path_length<length){
+
+			let direction = Math.floor(Math.random() * 6);
+			let neighbor = [0,0];
+
+			if (direction===0 || direction===5){
+				neighbor = [point[0],point[1]-1]
+			} else if ( direction === 1){
+				neighbor = [point[0],point[1]+1]
+			} else if ( direction === 2){
+				neighbor = [point[0]-1,point[1]]
+			} else {
+				neighbor = [point[0]+1,point[1]]			
+			} 
+			// console.log(neighbor);
+			// add point to visited set, add border between them
+			let string_neighbor = coordinate_string(neighbor);
+
+			if (unvisited.has(string_neighbor) && valid_point(neighbor)){
+				visited.add((string_neighbor));
+				unvisited.delete((string_neighbor));
+
+				borders.add(create_line(point,neighbor));
+			}
+
+			point=neighbor;
+
+			path_length++;
+		}
+		i = i+1;
+	}
+
+
+	// create visualization
+	var svg = d3.select("svg#maze");
+	let margin = { top: 60, right: 15, bottom: 15, left: 50};
+	let svgWidth = svg.attr("width");
+	let svgHeight = svg.attr("height");
+	let mazeWidth = svgWidth - margin.left - margin.right; // If you know the key is fixed text, you can access it with . instead of [""]
+	let mazeHeight = svgHeight - margin.top - margin.bottom;
+
+
+	let heightScale = d3.scaleLinear()
+		              .domain([0, height])
+		              .range([0, mazeHeight]); 
+	let widthScale = d3.scaleLinear()
+		              .domain([0, width])
+		              .range([0, mazeWidth]); 
+
+// function mousedown() {
+//     var m = d3.mouse(this);
+//     line = vis.append("line")
+//         .attr("x1", m[0])
+//         .attr("y1", m[1])
+//         .attr("x2", m[0])
+//         .attr("y2", m[1]);
+
+//     vis.on("mousemove", mousemove);
+// }
+	svg.append("text")
+		.attr("x", svgWidth/2)
+		.attr("y", margin.top-13)
+		.attr("text-anchor", "middle")  
+        .style("font-size", "20px") 
+        .text("Start");
+
+	svg.append("text")
+		.attr("x", svgWidth/2)
+		.attr("y", svgHeight-margin.bottom+8)
+		.attr("text-anchor", "middle")  
+        .style("font-size", "20px") 
+        .text("End")
+        .on("mouseover", function(){
+        	console.log("yeeah!");
+        	d3.select("#warning").remove();
+        	d3.select("#congratulations").remove();
+			svg.append("text")
+				.attr("id","congratulations")
+				.attr("x", svgWidth/2)
+				.attr("y", 20)
+				.attr("text-anchor", "middle")  
+		        .style("font-size", "20px") 
+		        .text("Congratulations!");
+        });
+
+
+	let track = svg.append("g")
+		.attr("id","track")
+		.attr("transform", "translate("+(margin.left)+","+margin.top+")");
+
+	let squares = [];
+	for (a=0;a<width-1;a++){
+		for (b=0;b<height-1;b++){
+			squares.push({"x": widthScale(a),"y": heightScale(b)});
+		}
+	}
+
+
+	track.selectAll("rect").data(squares)
+        .enter()
+        .append("rect")
+        .attr("x", d=>d["x"])
+        .attr("y", d=>d["y"])
+        .attr("width", mazeWidth/width)
+        .attr("height", mazeHeight/height)
+        .attr("fill",  "white")
+        .attr("stroke", "none")
+        .on("mouseover", function(){
+        	d3.select(this)
+        		.attr("fill","lightblue");
+
+        });
+
+	let maze = svg.append("g")
+		.attr("id","maze")
+		.attr("transform", "translate("+(margin.left)+","+margin.top+")");
+
+
+	
+	
+
+	borders.forEach(function(d, i){
+		maze.append("line")
+			.style("stroke", "black")
+			.attr("x1",widthScale(d.x1))
+			.attr("y1",heightScale(d.y1))
+			.attr("x2",widthScale(d.x2))
+			.attr("y2",heightScale(d.y2))
+			.style("stroke-width", 20/width)
+			.on("mouseover", function(){
+				d3.select("#congratulations").remove();
+				warn = svg.append("text")
+					.attr("id","warning")
+					.attr("x", svgWidth/2)
+					.attr("y", 20)
+					.attr("text-anchor", "middle")  
+			        .style("font-size", "20px") 
+			        .text("You can't go there!");
+
+			   	warn.transition()
+			        .duration(1500)
+			        .remove();
+			});
+
+
+	});
+
+
+
+// svg.select("#warning").remove()
+
+
+	// TO DO
+	//  make start, end markers
+	// add event listeners to borders
+	// highlight path user takes
+	// add options to change difficulty
+	// 
+</script>
+
+
+
+
+
+
+</html>
